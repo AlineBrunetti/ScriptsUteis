@@ -36,7 +36,7 @@ if not nome_pasta:
 
 # Gera a data e o nome do arquivo .txt no formato desejado
 data_hoje = datetime.now().strftime("%d_%m_%Y")
-nome_arquivo = f"EC_{nome_pasta}_{data_hoje}.txt"
+nome_arquivo = f"EPA_{nome_pasta}_{data_hoje}.txt"
 caminho_completo = os.path.join(args.caminho, nome_arquivo)
 
 # Executa o comando tree do Windows enviando a saída para o arquivo
