@@ -3,11 +3,13 @@ import os
 import subprocess
 from datetime import datetime
 
-# Pega dinamicamente a pasta Downloads do usuário logado atualmente
 pasta_downloads = os.path.join(os.path.expanduser("~"), "Downloads")
 
 parser = argparse.ArgumentParser(
-    description="Gera arquivo SVG de dependências usando o Madge."
+    description=(
+        "Gera arquivo SVG de dependências usando o Madge com suporte a"
+        " aliases."
+    )
 )
 parser.add_argument(
     "--caminho",
@@ -25,48 +27,50 @@ parser.add_argument(
     "--alvo",
     "-a",
     default=None,
-    help="Arquivo específico ou componente para focar as relações (opcional)",
+    help="Arquivo específico para focar (caminho absoluto ou relativo)",
 )
 parser.add_argument(
     "--extensoes",
     "-e",
     default="ts,tsx,js,jsx",
-    help="Extensões suportadas separadas por vírgula (padrão: ts,tsx,js,jsx)",
+    help="Extensões suportadas separadas por vírgula",
 )
 
 args = parser.parse_args()
 
-# Garante que a pasta de destino existe
 os.makedirs(args.caminho, exist_ok=True)
 
-# Define o nome base para o arquivo com base no alvo ou na pasta de origem
+alvo_processado = args.alvo
 if args.alvo:
-    nome_base = os.path.splitext(os.path.basename(args.alvo))[0]
+  if os.path.isabs(args.alvo):
+    alvo_processado = os.path.relpath(args.alvo, start=os.getcwd())
+  nome_base = os.path.splitext(os.path.basename(args.alvo))[0]
 else:
-    caminho_absoluto = os.path.abspath(args.origem)
-    nome_base = os.path.basename(caminho_absoluto) or "projeto"
+  caminho_absoluto = os.path.abspath(args.origem)
+  nome_base = os.path.basename(caminho_absoluto) or "projeto"
 
-# Formato do nome: DP_coisa_analisada_dia_mes_ano.svg
 data_hoje = datetime.now().strftime("%d_%m_%Y")
 nome_arquivo = f"DP_{nome_base}_{data_hoje}.svg"
 caminho_completo = os.path.join(args.caminho, nome_arquivo)
 
-# Monta o comando base do Madge
 cmd = ["npx", "madge", f"--extensions={args.extensoes}"]
 
-# Se um arquivo/alvo específico foi passado, o Madge foca nele e nos seus dependentes/dependências
-if args.alvo:
-    cmd.append(args.alvo)
+# Correção aplicada: parâmetro correto do CLI do Madge é --ts-config
+if os.path.exists("tsconfig.json"):
+  cmd.extend(["--ts-config", "tsconfig.json"])
+elif os.path.exists("jsconfig.json"):
+  cmd.extend(["--ts-config", "jsconfig.json"])
 
-# Adiciona a pasta de origem e o arquivo de saída gerado
+if alvo_processado:
+  cmd.append(alvo_processado)
+
 cmd.extend([args.origem, "--image", caminho_completo])
 
-print(f"Gerando relatório de dependências para: {args.alvo or args.origem}...")
+print(f"Gerando relatório para: {alvo_processado or args.origem}...")
 
-# Executa o comando via subprocess
 resultado = subprocess.run(cmd, shell=True)
 
 if resultado.returncode == 0:
-    print(f"Dependências salvas com sucesso em: {caminho_completo}")
+  print(f"Salvo com sucesso em: {caminho_completo}")
 else:
-    print("Erro ao gerar o gráfico de dependências.")
+  print("Erro ao gerar o gráfico de dependências.")
